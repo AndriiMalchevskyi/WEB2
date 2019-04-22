@@ -3,7 +3,7 @@ import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
-import {BsDropdownModule} from 'ngx-bootstrap';
+import {BsDropdownModule, TabsModule} from 'ngx-bootstrap';
 
 import { AppComponent } from './app.component';
 import { NavComponent } from './nav/nav.component';
@@ -14,9 +14,26 @@ import { ErrorInterceptorProvider } from './_services/error.interceptor';
 import { AlertifyService } from './_services/Alertify.service';
 import { appRoutes } from './routes';
 import { EstatesComponent } from './estates/estates.component';
-import { Estate_agentsComponent } from './estate_agents/estate_agents.component';
+import { Estate_agentsComponent } from './estate_agent/estate_agentsList/estate_agents.component';
 import { MessagesComponent } from './messages/messages.component';
 import { AuthGuard } from './_guards/auth.guard';
+import { UserService } from './_services/user.service';
+import { MemberListComponent } from './members/member-list/member-list.component';
+import { MemberCardComponent } from './members/member-card/member-card.component';
+import { JwtModule } from '@auth0/angular-jwt';
+import { MemberDetailComponent } from './members/member-detail/member-detail.component';
+import { MemberDetailResolve } from './_resolvers/member-detail.resolver';
+import { MemberListResolve } from './_resolvers/member-list.resolver';
+import { Estate_agentsCardComponent } from './estate_agent/estate_agentsCard/estate_agentsCard.component';
+import { SellingComponent } from './selling/selling.component';
+import { RentComponent } from './rent/rent.component';
+import { Daily_rentComponent } from './daily_rent/daily_rent.component';
+import { EstateService } from './_services/estate.service';
+
+
+export function tokenGetter() {
+   return localStorage.getItem('token');
+}
 
 @NgModule({
    declarations: [
@@ -24,25 +41,46 @@ import { AuthGuard } from './_guards/auth.guard';
       NavComponent,
       HomeComponent,
       RegisterComponent,
-      EstatesComponent,
+     EstatesComponent,
       Estate_agentsComponent,
-      MessagesComponent
+      Estate_agentsCardComponent,
+      MessagesComponent,
+      MemberListComponent,
+      MemberCardComponent,
+      MemberDetailComponent,
+      SellingComponent,
+      RentComponent,
+      Daily_rentComponent
    ],
    imports: [
       BrowserModule,
       HttpClientModule,
       FormsModule,
       BsDropdownModule.forRoot(),
-      RouterModule.forRoot(appRoutes)
+      TabsModule.forRoot(),
+      RouterModule.forRoot(appRoutes),
+      JwtModule.forRoot({
+         config: {
+            tokenGetter: tokenGetter,
+            whitelistedDomains: ['localhost:5000'],
+            blacklistedRoutes: ['localhost:5000/api/auth']
+         }
+      })
    ],
    providers: [
       AuthService,
       ErrorInterceptorProvider,
       AlertifyService,
-      AuthGuard
+      AuthGuard,
+     UserService,
+     EstateService,
+      MemberDetailResolve,
+      MemberListResolve
    ],
    bootstrap: [
       AppComponent
    ]
 })
-export class AppModule { }
+export class AppModule {
+
+}
