@@ -10,10 +10,11 @@ using Microsoft.AspNetCore.Mvc;
 using MyEstate.Application.Interfaces;
 using MyEstate.Application.User.Models;
 using MyEstate.Domain.Entities;
+using System.Text;
 
 namespace MyEstate.API.Controllers
 {
-    [Authorize]
+    
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
@@ -28,7 +29,6 @@ namespace MyEstate.API.Controllers
         }
 
         [HttpGet]
-
         [Route("/api/users/getusers")]
         public async Task<IActionResult> GetUsers()
         {
@@ -39,7 +39,7 @@ namespace MyEstate.API.Controllers
             return Ok(usersToReturn);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id}", Name = "GetUser")]
         public async Task<IActionResult> GetUser(int id)
         {
             var user = await _repo.GetUser(id);
@@ -49,19 +49,69 @@ namespace MyEstate.API.Controllers
             return Ok(userToReturn);
         }
 
-        [HttpPut]
-        public async Task<IActionResult> UpdateUser([FromBody]UserForDetailedDto userforUpdateDto)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser([FromRoute]int id, [FromBody]UserForDetailedDto userForUpdateDto)
         {
-            //var userFromRepo = await _repo.GetUser(userforUpdateDto.Id);
-
-            User user = _mapper.Map<User>(userforUpdateDto);
-
-            if(await _repo.UpdateUser(user)){
-                return NoContent();
+            if (id != userForUpdateDto.Id)
+            {
+                return BadRequest();
             }
 
-            throw new Exception($"Updating user {userforUpdateDto.Id} failed on save");
+            var userFromRepo = await _repo.GetUser(id);
+            userFromRepo.UserName = userForUpdateDto.Username;
+            userFromRepo.City = userForUpdateDto.City;
+            userFromRepo.Country = userForUpdateDto.Country;
+            //var user = _mapper.Map<User>(userForUpdateDto);
+            var temp = await _repo.UpdateUser(userFromRepo);
+            if(temp)
+            {
+                return Ok(await _repo.GetUser(id));
+            }else
+            {
+                return BadRequest();
+            }
         }
+
+       /*  [HttpPost]
+        public async Task<IActionResult> UpdateUserPassword([FromBody]UserForChangePasswordDto userForChangePassDto)
+        {
+            var re = Request;
+            Microsoft.Extensions.Primitives.StringValues values;
+            bool result = re.Headers.TryGetValue("Authorization", out values);
+            if (result && values.Count > 0)
+            {
+                var token = values.SingleOrDefault();
+                var splitToken = token.Split(' ');
+                var tokenHandler = new JwtSecurityTokenHandler();
+
+                var jsonToken = tokenHandler.ReadJwtToken(splitToken[1]) as JwtSecurityToken;
+                //Find user by id
+                string id = jsonToken.Payload.ContainsKey("nameid") ? jsonToken.Payload["nameid"].ToString() : null;
+                var userFromRepo = await _repo.GetUser(Convert.ToInt32(id));
+
+                if (VerifyPasswordHash(userForChangePassDto.oldPass, userFromRepo.PasswordHash, userFromRepo.PasswordSalt))
+                {
+                    CreatePasswordHash(userForChangePassDto.newPass, out var passwordHash, out var passwordSalt);
+                    userFromRepo.PasswordHash = passwordHash;
+                    userFromRepo.PasswordSalt = passwordSalt;
+
+                    var temp = await _repo.UpdateUser(userFromRepo);
+                    if(temp)
+                    {
+                        return Ok(await _repo.GetUser(Convert.ToInt32(id)));
+                    }else
+                    {
+                        return BadRequest();
+                    }
+                }else{
+                    return BadRequest();
+                }
+
+            }
+
+            return Unauthorized();
+        }
+        */
 
         [HttpGet]
         [Route("/api/users/getuserinfo")]
@@ -74,13 +124,11 @@ namespace MyEstate.API.Controllers
             {
                 var token = values.SingleOrDefault();
                 var splitToken = token.Split(' ');
-                // var key = Encoding.ASCII.GetBytes(splitToken[1]);
                 var tokenHandler = new JwtSecurityTokenHandler();
 
                 var jsonToken = tokenHandler.ReadJwtToken(splitToken[1]) as JwtSecurityToken;
                 //Find user by id
-                //var userFromRepo = await _repo.GetUser(Convert.ToInt32(decodeToken.Id));
-                string id = jsonToken.Payload.ContainsKey("nameid") ? jsonToken.Payload["nameid"].ToString() : null;
+                 string id = jsonToken.Payload.ContainsKey("nameid") ? jsonToken.Payload["nameid"].ToString() : null;
                 var userFromRepo = await _repo.GetUser(Convert.ToInt32(id));
 
                 var userDTO = _mapper.Map<UserForDetailedDto>(userFromRepo);
@@ -88,6 +136,30 @@ namespace MyEstate.API.Controllers
             }
 
             return Unauthorized();
+        }
+
+        private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
+        {
+            using (var hmac = new System.Security.Cryptography.HMACSHA512())
+            {
+                passwordSalt = hmac.Key;
+                passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+            }
+        }
+
+        private bool VerifyPasswordHash(string password, byte[] passwordHash, byte[] passwordSalt)
+        {
+            using (var hmac = new System.Security.Cryptography.HMACSHA512(passwordSalt))
+            {
+                var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+
+                if (computedHash.Where((t, i) => t != passwordHash[i]).Any())
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
